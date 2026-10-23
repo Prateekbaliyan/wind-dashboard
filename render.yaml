@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: uk-wind-forecast-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: ELEXON_BASE_URL
+        value: https://data.elexon.co.uk/bmrs/api/v1
+      - key: ENABLE_CACHE
+        value: "true"
+      - key: API_TIMEOUT_SECONDS
+        value: "30.0"
+    healthCheckPath: /api/health
