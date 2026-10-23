@@ -13,7 +13,6 @@ import {
   ReferenceLine
 } from 'recharts';
 import type { IntervalDataPoint } from '../types';
-import { Layers, HelpCircle, Eye } from 'lucide-react';
 
 interface ForecastChartProps {
   data: IntervalDataPoint[];
@@ -21,17 +20,17 @@ interface ForecastChartProps {
 }
 
 export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInterval }) => {
-  const [showErrorBars, setShowErrorBars] = useState(true);
+  const [showErrorBars, setShowErrorBars] = useState(false);
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-navy-900 border border-navy-700 rounded-xl p-8 text-center text-slate-400">
+      <div className="bg-white border border-slate-200 rounded p-8 text-center text-slate-500 text-xs">
         No interval data available for the selected range.
       </div>
     );
   }
 
-  // Format timestamp for display
+  // Format data for chart
   const chartData = data.map((d) => {
     const dt = new Date(d.startTime);
     const dateStr = dt.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -50,41 +49,35 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
       const item: IntervalDataPoint & { formattedTime: string } = payload[0].payload;
       const isOver = (item.error_mw ?? 0) > 0;
       return (
-        <div className="bg-navy-950 border border-navy-600 rounded-xl p-3.5 shadow-2xl text-xs space-y-2 min-w-[260px] backdrop-blur-md">
-          <div className="flex items-center justify-between border-b border-navy-700/80 pb-2">
-            <span className="font-semibold text-white">{item.formattedTime} UTC</span>
+        <div className="bg-white border border-slate-300 rounded p-3 shadow-md text-xs space-y-1.5 min-w-[240px] text-slate-800">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 font-medium">
+            <span className="text-slate-900 font-semibold">{item.formattedTime} UTC</span>
             {item.settlementPeriod && (
-              <span className="text-[10px] bg-navy-800 text-slate-300 px-1.5 py-0.5 rounded border border-navy-700">
-                Period {item.settlementPeriod}
+              <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
+                SP {item.settlementPeriod}
               </span>
             )}
           </div>
 
-          <div className="space-y-1.5 font-mono">
-            <div className="flex items-center justify-between text-wind-emerald">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-wind-emerald" />
-                Actual Output:
-              </span>
-              <span className="font-bold">
-                {item.actual_mw != null ? `${item.actual_mw.toLocaleString()} MW` : 'Missing Actual'}
+          <div className="space-y-1 font-mono text-[11px]">
+            <div className="flex items-center justify-between">
+              <span className="text-emerald-700 font-sans font-medium">Actual Output:</span>
+              <span className="font-semibold text-slate-900">
+                {item.actual_mw != null ? `${item.actual_mw.toLocaleString()} MW` : 'Missing'}
               </span>
             </div>
 
-            <div className="flex items-center justify-between text-wind-cyan">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-wind-cyan" />
-                Day-Ahead Forecast:
-              </span>
-              <span className="font-bold">
-                {item.forecast_mw != null ? `${item.forecast_mw.toLocaleString()} MW` : 'No Eligible Forecast'}
+            <div className="flex items-center justify-between">
+              <span className="text-blue-700 font-sans font-medium">Day-Ahead Forecast:</span>
+              <span className="font-semibold text-slate-900">
+                {item.forecast_mw != null ? `${item.forecast_mw.toLocaleString()} MW` : 'No Eligible Run'}
               </span>
             </div>
 
             {item.is_matched && (
-              <div className="flex items-center justify-between pt-1 border-t border-navy-800">
-                <span className="text-slate-400">Signed Error (F - A):</span>
-                <span className={`font-bold ${isOver ? 'text-amber-400' : 'text-rose-400'}`}>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                <span className="text-slate-500 font-sans">Error (F − A):</span>
+                <span className={`font-semibold ${isOver ? 'text-amber-700' : 'text-rose-700'}`}>
                   {item.error_mw != null ? `${item.error_mw > 0 ? '+' : ''}${item.error_mw.toLocaleString()} MW` : '—'}
                 </span>
               </div>
@@ -92,24 +85,16 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
           </div>
 
           {item.publishTime && (
-            <div className="text-[11px] text-slate-400 pt-1.5 border-t border-navy-800/80 space-y-0.5">
-              <div className="flex justify-between">
-                <span>Selected Run:</span>
-                <span className="text-slate-300 font-mono text-[10px]">
-                  {new Date(item.publishTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Decision Cutoff:</span>
-                <span className="text-slate-300 font-mono text-[10px]">
-                  {item.cutoff_time ? new Date(item.cutoff_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC' : '—'}
-                </span>
-              </div>
+            <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 flex justify-between">
+              <span>Run Publish Time:</span>
+              <span className="font-mono text-slate-700">
+                {new Date(item.publishTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC
+              </span>
             </div>
           )}
 
-          <div className="pt-1 text-[10px] text-wind-cyan/80 italic flex items-center gap-1">
-            <Eye className="w-3 h-3" /> Click interval to inspect version history
+          <div className="pt-0.5 text-[10px] text-slate-400 italic">
+            Click interval to inspect all published runs
           </div>
         </div>
       );
@@ -118,39 +103,35 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
   };
 
   return (
-    <div className="bg-navy-900 border border-navy-700/80 rounded-xl p-4 lg:p-5 shadow-lg space-y-4">
+    <div className="bg-white border border-slate-200 rounded p-4 shadow-none space-y-3">
       
-      {/* Chart Title & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-navy-800 pb-3">
+      {/* Chart Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-2.5">
         <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <span>National Wind Generation: Forecast vs Actual</span>
-            <span className="text-xs font-normal text-slate-400">
-              (Total Delivery Intervals: {data.length})
-            </span>
+          <h2 className="text-sm font-semibold text-slate-900">
+            National Wind Generation: Actual vs Day-Ahead Forecast
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Compare delivered wind output with the latest eligible Day-Ahead forecast publication.
+          <p className="text-xs text-slate-500 mt-0.5">
+            Half-hourly actuals (FUELHH) compared against selected pre-cutoff hourly forecasts (WINDFOR).
           </p>
         </div>
 
         <div className="flex items-center gap-2 text-xs">
           <button
             onClick={() => setShowErrorBars(!showErrorBars)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition ${
+            className={`px-2.5 py-1 rounded border text-xs font-medium transition ${
               showErrorBars
-                ? 'bg-navy-800 text-slate-200 border-navy-600'
-                : 'bg-navy-950 text-slate-500 border-navy-800'
+                ? 'bg-slate-100 text-slate-800 border-slate-300'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
-            <Layers className="w-3.5 h-3.5 text-wind-cyan" />
-            <span>{showErrorBars ? 'Hide Error Track' : 'Show Error Track'}</span>
+            {showErrorBars ? 'Hide Signed Error Bars' : 'Show Signed Error Bars'}
           </button>
         </div>
       </div>
 
-      {/* Main Chart Area */}
-      <div className="h-[420px] w-full">
+      {/* Main Chart Canvas */}
+      <div className="h-[360px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={chartData}
@@ -160,23 +141,16 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
                 onSelectInterval(clicked.startTime);
               }
             }}
-            margin={{ top: 10, right: 15, left: -10, bottom: 0 }}
+            margin={{ top: 10, right: 15, left: 0, bottom: 0 }}
           >
-            <defs>
-              <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10B981" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#10B981" stopOpacity={0.0} />
-              </linearGradient>
-            </defs>
-
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E2D4E" opacity={0.6} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
 
             <XAxis
               dataKey="formattedTime"
               stroke="#64748B"
               fontSize={11}
               tickLine={false}
-              minTickGap={40}
+              minTickGap={45}
             />
 
             <YAxis
@@ -192,12 +166,12 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
 
             <Legend
               verticalAlign="top"
-              height={36}
-              iconType="circle"
-              wrapperStyle={{ fontSize: '12px', paddingTop: '4px' }}
+              height={32}
+              iconType="plainline"
+              wrapperStyle={{ fontSize: '12px', paddingTop: '0px' }}
             />
 
-            <ReferenceLine y={0} stroke="#334155" />
+            <ReferenceLine y={0} stroke="#CBD5E1" />
 
             {/* Error bars if toggled on */}
             {showErrorBars && (
@@ -205,16 +179,16 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
                 <Bar
                   dataKey="overforecast_mw"
                   name="Overforecast (+MW)"
-                  fill="#F59E0B"
-                  opacity={0.35}
-                  barSize={6}
+                  fill="#D97706"
+                  opacity={0.3}
+                  barSize={5}
                 />
                 <Bar
                   dataKey="underforecast_mw"
-                  name="Underforecast (-MW)"
-                  fill="#F43F5E"
-                  opacity={0.35}
-                  barSize={6}
+                  name="Underforecast (−MW)"
+                  fill="#DC2626"
+                  opacity={0.3}
+                  barSize={5}
                 />
               </>
             )}
@@ -223,11 +197,11 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
             <Line
               type="monotone"
               dataKey="actual_mw"
-              name="Actual Wind (FUELHH)"
-              stroke="#10B981"
-              strokeWidth={2.2}
+              name="Actual Wind Output (MW)"
+              stroke="#047857"
+              strokeWidth={1.8}
               dot={false}
-              activeDot={{ r: 5, fill: '#10B981', stroke: '#FFFFFF', strokeWidth: 2 }}
+              activeDot={{ r: 4, fill: '#047857' }}
               connectNulls={false}
             />
 
@@ -235,45 +209,37 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({ data, onSelectInte
             <Line
               type="monotone"
               dataKey="forecast_mw"
-              name="Day-Ahead Forecast (WINDFOR)"
-              stroke="#38BDF8"
-              strokeWidth={2.0}
-              strokeDasharray="4 2"
+              name="Selected Forecast (MW)"
+              stroke="#2563EB"
+              strokeWidth={1.8}
+              strokeDasharray="4 3"
               dot={false}
-              activeDot={{ r: 5, fill: '#38BDF8', stroke: '#FFFFFF', strokeWidth: 2 }}
+              activeDot={{ r: 4, fill: '#2563EB' }}
               connectNulls={false}
             />
 
             <Brush
               dataKey="formattedTime"
-              height={26}
-              stroke="#1E2D4E"
-              fill="#0B101D"
+              height={22}
+              stroke="#CBD5E1"
+              fill="#F8FAFC"
               tickFormatter={() => ''}
             />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 border-t border-navy-800/80 pt-2.5">
+      {/* Chart Footer Note */}
+      <div className="text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-100 pt-2">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-0.5 bg-wind-emerald inline-block" /> Actual Output (MW)
+            <span className="w-3 h-0.5 bg-emerald-700 inline-block" /> Actual Generation (MW)
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-0.5 bg-wind-cyan border-b border-dashed inline-block" /> Selected Forecast (MW)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 bg-amber-400 inline-block rounded-sm" /> Overforecast
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 bg-rose-400 inline-block rounded-sm" /> Underforecast
+            <span className="w-3 h-0.5 bg-blue-600 border-b border-dashed inline-block" /> Day-Ahead Forecast (MW)
           </span>
         </div>
-        <div className="flex items-center gap-1 text-slate-500">
-          <HelpCircle className="w-3.5 h-3.5" />
-          <span>Gaps indicate missing intervals; data is not silently interpolated.</span>
-        </div>
+        <span>Data gaps indicate missing intervals without silent interpolation.</span>
       </div>
 
     </div>

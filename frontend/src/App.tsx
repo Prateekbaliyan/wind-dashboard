@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { KpiCards } from './components/KpiCards';
 import { ForecastChart } from './components/ForecastChart';
 import { AccuracySummary } from './components/AccuracySummary';
+import { PublicationHistorySection } from './components/PublicationHistorySection';
 import { DataTable } from './components/DataTable';
 import { PublicationHistoryModal } from './components/PublicationHistoryModal';
 import type { 
@@ -11,14 +13,16 @@ import type {
   CutoffPolicyType 
 } from './types';
 import { fetchOverview, fetchSeries, getExportUrl } from './services/api';
-import { AlertCircle, ExternalLink, Info } from 'lucide-react';
+import { AlertCircle, ExternalLink } from 'lucide-react';
 
 export const App: React.FC = () => {
+  const [activeSection, setActiveSection] = useState('overview');
   const [startDate, setStartDate] = useState('2026-01-01');
   const [endDate, setEndDate] = useState('2026-01-31');
   const [cutoffPolicy, setCutoffPolicy] = useState<CutoffPolicyType>('day_ahead_1100');
   const [resolution, setResolution] = useState('hourly');
   const [selectedInterval, setSelectedInterval] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
   const [series, setSeries] = useState<SeriesResponse | null>(null);
@@ -35,13 +39,16 @@ export const App: React.FC = () => {
       ]);
       setOverview(ovRes);
       setSeries(serRes);
+      if (serRes.intervals.length > 0 && !selectedInterval) {
+        setSelectedInterval(serRes.intervals[0].startTime);
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to load forecast data from server.');
     } finally {
       setIsLoading(false);
     }
-  }, [startDate, endDate, cutoffPolicy, resolution]);
+  }, [startDate, endDate, cutoffPolicy, resolution, selectedInterval]);
 
   useEffect(() => {
     loadData();
@@ -57,156 +64,184 @@ export const App: React.FC = () => {
     window.open(url, '_blank');
   };
 
+  const handleInspectInterval = (startTime: string) => {
+    setSelectedInterval(startTime);
+    setIsModalOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex font-sans">
       
-      {/* Top Navigation & Controls */}
-      <Header
-        startDate={startDate}
-        endDate={endDate}
-        onDateChange={handleDateChange}
-        cutoffPolicy={cutoffPolicy}
-        onCutoffChange={setCutoffPolicy}
-        resolution={resolution}
-        onResolutionChange={setResolution}
+      {/* 1. Narrow Left Sidebar */}
+      <Sidebar
+        activeSection={activeSection}
+        onSelectSection={setActiveSection}
         isDemo={overview?.is_fallback_demo ?? false}
         dataSource={overview?.data_source ?? 'Connecting...'}
-        onRefresh={loadData}
-        onExport={handleExport}
-        isLoading={isLoading}
       />
 
-      {/* Main Content Dashboard */}
-      <main className="flex-1 max-w-[1800px] w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         
-        {/* Error Notification */}
-        {error && (
-          <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-sm flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-              <span>{error}</span>
-            </div>
-            <button
-              onClick={loadData}
-              className="px-3 py-1 bg-rose-900/60 hover:bg-rose-800 text-white rounded-lg text-xs font-medium transition"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+        {/* 2. Compact Top Header */}
+        <Header
+          startDate={startDate}
+          endDate={endDate}
+          onDateChange={handleDateChange}
+          cutoffPolicy={cutoffPolicy}
+          onCutoffChange={setCutoffPolicy}
+          resolution={resolution}
+          onResolutionChange={setResolution}
+          isDemo={overview?.is_fallback_demo ?? false}
+          dataSource={overview?.data_source ?? 'Connecting...'}
+          onRefresh={loadData}
+          onExport={handleExport}
+          isLoading={isLoading}
+        />
 
-        {/* Fallback Demo Mode Disclosure Banner (only if fallback demo triggered) */}
-        {overview?.is_fallback_demo && (
-          <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+        {/* Dashboard Grid Container */}
+        <main className="flex-1 p-5 space-y-4 max-w-[1600px] w-full mx-auto">
+          
+          {/* Error Notification Banner */}
+          {error && (
+            <div className="p-3 rounded border border-rose-200 bg-rose-50 text-rose-700 text-xs flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                onClick={loadData}
+                className="px-2.5 py-1 bg-white border border-rose-300 hover:bg-rose-100 text-rose-800 rounded text-xs font-medium transition"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Fallback Demo Mode Banner (only if fallback demo triggered) */}
+          {overview?.is_fallback_demo && (
+            <div className="p-2.5 rounded border border-amber-200 bg-amber-50 text-amber-800 text-xs flex items-center justify-between">
               <span>
-                <strong>Fallback Demo Mode Active:</strong> Live Elexon API was temporarily unavailable. Showing genuine deterministic sample dataset. Not connected to live streams.
+                <strong>Demo Mode Active:</strong> Live Elexon API temporarily unreachable. Displaying deterministic fallback sample dataset.
               </span>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 1. Executive KPI Summary Cards */}
-        {series?.metrics ? (
-          <KpiCards
-            metrics={series.metrics}
-            avgActualMw={
-              series.intervals.filter((i) => i.actual_mw != null).length
-                ? Math.round(
-                    series.intervals.reduce((acc, i) => acc + (i.actual_mw || 0), 0) /
-                      series.intervals.filter((i) => i.actual_mw != null).length
-                  )
-                : null
-            }
-            peakActualMw={
-              series.intervals.filter((i) => i.actual_mw != null).length
-                ? Math.round(Math.max(...series.intervals.map((i) => i.actual_mw || 0)))
-                : null
-            }
-            avgForecastMw={
-              series.intervals.filter((i) => i.forecast_mw != null).length
-                ? Math.round(
-                    series.intervals.reduce((acc, i) => acc + (i.forecast_mw || 0), 0) /
-                      series.intervals.filter((i) => i.forecast_mw != null).length
-                  )
-                : null
-            }
+          {/* Section 1: Row of 4 Simple KPI Cards */}
+          <section id="overview" className="scroll-mt-16">
+            {series?.metrics ? (
+              <KpiCards
+                metrics={series.metrics}
+                avgActualMw={
+                  series.intervals.filter((i) => i.actual_mw != null).length
+                    ? Math.round(
+                        series.intervals.reduce((acc, i) => acc + (i.actual_mw || 0), 0) /
+                          series.intervals.filter((i) => i.actual_mw != null).length
+                      )
+                    : null
+                }
+                peakActualMw={
+                  series.intervals.filter((i) => i.actual_mw != null).length
+                    ? Math.round(Math.max(...series.intervals.map((i) => i.actual_mw || 0)))
+                    : null
+                }
+                avgForecastMw={
+                  series.intervals.filter((i) => i.forecast_mw != null).length
+                    ? Math.round(
+                        series.intervals.reduce((acc, i) => acc + (i.forecast_mw || 0), 0) /
+                          series.intervals.filter((i) => i.forecast_mw != null).length
+                      )
+                    : null
+                }
+                cutoffPolicy={cutoffPolicy}
+              />
+            ) : null}
+          </section>
+
+          {/* Section 2: Large Actual vs Forecast Line Chart */}
+          <section id="chart" className="scroll-mt-16">
+            {series?.intervals && (
+              <ForecastChart
+                data={series.intervals}
+                onSelectInterval={(startTime) => setSelectedInterval(startTime)}
+              />
+            )}
+          </section>
+
+          {/* Section 3: Small Forecast Accuracy Section */}
+          <section id="accuracy" className="scroll-mt-16">
+            {series?.metrics && (
+              <AccuracySummary metrics={series.metrics} />
+            )}
+          </section>
+
+          {/* Section 4: Straightforward Forecast Publication History Table */}
+          <section id="history" className="scroll-mt-16">
+            {series?.intervals && (
+              <PublicationHistorySection
+                intervals={series.intervals}
+                selectedStartTime={selectedInterval}
+                onSelectStartTime={(st) => setSelectedInterval(st)}
+                cutoffPolicy={cutoffPolicy}
+              />
+            )}
+          </section>
+
+          {/* Section 5: Interval Data Explorer Table */}
+          <section id="data" className="scroll-mt-16">
+            {series?.intervals && (
+              <DataTable
+                data={series.intervals}
+                onInspectInterval={handleInspectInterval}
+                onExport={handleExport}
+              />
+            )}
+          </section>
+
+        </main>
+
+        {/* Modal Inspector for Individual Interval History */}
+        {isModalOpen && (
+          <PublicationHistoryModal
+            targetStartTime={selectedInterval}
             cutoffPolicy={cutoffPolicy}
-          />
-        ) : null}
-
-        {/* 2. Interactive Time-Series Chart */}
-        {series?.intervals && (
-          <ForecastChart
-            data={series.intervals}
-            onSelectInterval={(startTime) => setSelectedInterval(startTime)}
+            onClose={() => setIsModalOpen(false)}
           />
         )}
 
-        {/* 3. Accuracy Analysis & Market Interpretations */}
-        {series?.metrics && (
-          <AccuracySummary metrics={series.metrics} />
-        )}
-
-        {/* 4. Underlying Interval Data Explorer */}
-        {series?.intervals && (
-          <DataTable
-            data={series.intervals}
-            onInspectInterval={(startTime) => setSelectedInterval(startTime)}
-            onExport={handleExport}
-          />
-        )}
-
-      </main>
-
-      {/* Forecast Publication Version Inspector Modal */}
-      <PublicationHistoryModal
-        targetStartTime={selectedInterval}
-        cutoffPolicy={cutoffPolicy}
-        onClose={() => setSelectedInterval(null)}
-      />
-
-      {/* Enterprise Analytics Footer */}
-      <footer className="bg-navy-900 border-t border-navy-800 text-xs text-slate-400 py-6 px-4 lg:px-8 mt-12">
-        <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="space-y-1 text-center md:text-left">
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 text-slate-300 font-medium">
-              <span>UK Wind Forecast Accuracy & Day-Ahead Procurement Desk</span>
-              <span>•</span>
-              <span>Target Horizon: January 2026</span>
+        {/* Compact Enterprise Footer */}
+        <footer className="bg-white border-t border-slate-200 text-xs text-slate-500 py-4 px-6 mt-6">
+          <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+              <span>UK Wind Forecast Accuracy & Day-Ahead Procurement Desk • Delivery Horizon: January 2026</span>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Official Elexon BMRS Datasets: FUELHH (WIND actuals) & WINDFOR (Wind forecasts).
+              </p>
             </div>
-            <p className="text-[11px] text-slate-500">
-              Data verified against official Elexon BMRS datasets: FUELHH (Actual Generation by Fuel Type) and WINDFOR (Wind Generation Forecast).
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 text-[11px]">
-            <a
-              href="https://data.elexon.co.uk/bmrs/api/v1/datasets/FUELHH/stream"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-wind-cyan flex items-center gap-1 transition"
-            >
-              <span>FUELHH Stream</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <a
-              href="https://data.elexon.co.uk/bmrs/api/v1/datasets/WINDFOR/stream"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-wind-cyan flex items-center gap-1 transition"
-            >
-              <span>WINDFOR Stream</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <div className="flex items-center gap-1 text-slate-500">
-              <Info className="w-3.5 h-3.5" />
-              <span>Electricity prices, consumer demand, and thermal fleets excluded from scope.</span>
+            <div className="flex items-center gap-4 text-[11px]">
+              <a
+                href="https://data.elexon.co.uk/bmrs/api/v1/datasets/FUELHH/stream"
+                target="_blank"
+                rel="noreferrer"
+                className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 transition"
+              >
+                <span>FUELHH Stream</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </a>
+              <a
+                href="https://data.elexon.co.uk/bmrs/api/v1/datasets/WINDFOR/stream"
+                target="_blank"
+                rel="noreferrer"
+                className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 transition"
+              >
+                <span>WINDFOR Stream</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </a>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+
+      </div>
 
     </div>
   );
