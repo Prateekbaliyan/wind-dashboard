@@ -6,12 +6,50 @@ import type {
   CutoffPolicyType 
 } from '../types';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const DEFAULT_REMOTE_BACKEND = 'https://wind-dashboard-backend.onrender.com/api';
+
+const getBaseUrl = (): string => {
+  if (import.meta.env.VITE_API_URL) {
+    // Strip trailing slash if present
+    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return '/api';
+    }
+    return DEFAULT_REMOTE_BACKEND;
+  }
+  return '/api';
+};
+
+const BASE_URL = getBaseUrl();
+
+async function handleResponse<T>(res: Response, endpoint: string): Promise<T> {
+  if (!res.ok) {
+    let errorDetail = res.statusText;
+    try {
+      const errJson = await res.json();
+      if (errJson && errJson.detail) {
+        errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      // not JSON
+    }
+    throw new Error(`${endpoint} failed (${res.status}): ${errorDetail}`);
+  }
+
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`${endpoint} returned non-JSON data: ${text.slice(0, 100)}...`);
+  }
+}
 
 export async function fetchHealth(): Promise<HealthStatus> {
   const res = await fetch(`${BASE_URL}/health`);
-  if (!res.ok) throw new Error(`Health check failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<HealthStatus>(res, 'Health check');
 }
 
 export async function fetchOverview(
@@ -28,8 +66,7 @@ export async function fetchOverview(
   if (customCutoff) params.append('custom_cutoff', customCutoff);
 
   const res = await fetch(`${BASE_URL}/overview?${params.toString()}`);
-  if (!res.ok) throw new Error(`Overview fetch failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<OverviewResponse>(res, 'Overview fetch');
 }
 
 export async function fetchSeries(
@@ -48,8 +85,7 @@ export async function fetchSeries(
   if (customCutoff) params.append('custom_cutoff', customCutoff);
 
   const res = await fetch(`${BASE_URL}/series?${params.toString()}`);
-  if (!res.ok) throw new Error(`Series fetch failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<SeriesResponse>(res, 'Series fetch');
 }
 
 export async function fetchForecastHistory(
@@ -64,8 +100,7 @@ export async function fetchForecastHistory(
   if (customCutoff) params.append('custom_cutoff', customCutoff);
 
   const res = await fetch(`${BASE_URL}/forecasts/history?${params.toString()}`);
-  if (!res.ok) throw new Error(`Forecast history fetch failed: ${res.statusText}`);
-  return res.json();
+  return handleResponse<ForecastHistoryResponse>(res, 'Forecast history fetch');
 }
 
 export function getExportUrl(
