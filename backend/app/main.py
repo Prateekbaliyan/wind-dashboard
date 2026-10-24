@@ -22,7 +22,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Support both /api/* and root /* paths so any frontend configuration works seamlessly
 app.include_router(router, prefix=settings.API_V1_STR)
+app.include_router(router)
 
 
 @app.get("/")

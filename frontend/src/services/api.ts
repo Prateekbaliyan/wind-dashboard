@@ -9,17 +9,26 @@ import type {
 const DEFAULT_REMOTE_BACKEND = 'https://wind-dashboard-backend.onrender.com/api';
 
 const getBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
-    // Strip trailing slash if present
-    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    let clean = envUrl.trim().replace(/\/+$/, '');
+    // If user provided origin without /api (e.g. https://wind-dashboard-backend.onrender.com)
+    if ((clean.startsWith('http://') || clean.startsWith('https://')) && !clean.endsWith('/api')) {
+      clean = `${clean}/api`;
+    }
+    return clean;
   }
+
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
+    // In local dev, use Vite proxy /api
     if (host === 'localhost' || host === '127.0.0.1') {
       return '/api';
     }
+    // When running on Vercel or any public domain, default directly to live Render backend
     return DEFAULT_REMOTE_BACKEND;
   }
+
   return '/api';
 };
 
